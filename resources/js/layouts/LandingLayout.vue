@@ -49,7 +49,7 @@ defineProps<{
 
         <!-- Reusable Footer -->
         <LandingFooter />
-    </div>
+    </div>      
 </template>
 
 <style>

@@ -19,7 +19,7 @@ import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Dashboard',
+        title: 'Scan Sampah',
         href: dashboard(),
         icon: LayoutGrid,
     },
