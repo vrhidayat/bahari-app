@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'wastewise' => [
+        'url' => env('WASTEWISE_API_URL', 'https://wastewise-pied-three.vercel.app'),
+    ],
+
 ];

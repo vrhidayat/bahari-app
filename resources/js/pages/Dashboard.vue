@@ -10,6 +10,7 @@ import {
 } from '@lucide/vue';
 import { onBeforeUnmount, ref } from 'vue';
 import { dashboard } from '@/routes';
+import { predict } from '@/routes/waste-scan';
 
 type NearbyPlace = {
     id: number;
@@ -30,13 +31,53 @@ type OverpassElement = {
     tags?: Record<string, string>;
 };
 
+type ScanResult = {
+    prediction: {
+        class: string;
+        confidence: number;
+        status: 'accepted' | 'uncertain';
+    };
+    recommendation: {
+        summary: string;
+        steps: string[];
+        warnings: string[];
+    } | null;
+    message?: string;
+    candidates?: {
+        class: string;
+        confidence: number;
+    }[];
+};
+
 const selectedImage = ref<File | null>(null);
 const previewUrl = ref<string | null>(null);
 const errorMessage = ref('');
+const scanError = ref('');
+const scanResult = ref<ScanResult | null>(null);
+const isScanning = ref(false);
 const nearbyPlaces = ref<NearbyPlace[]>([]);
 const locationError = ref('');
 const isSearching = ref(false);
 const hasSearched = ref(false);
+let scanRequestId = 0;
+
+const materialLabels: Record<string, string> = {
+    cardboard: 'Kardus',
+    glass: 'Kaca',
+    metal: 'Logam',
+    paper: 'Kertas',
+    plastic: 'Plastik',
+    trash: 'Sampah campuran',
+};
+
+const formatMaterial = (material: string): string =>
+    materialLabels[material] ?? material;
+
+const formatConfidence = (confidence: number): string =>
+    new Intl.NumberFormat('id-ID', {
+        style: 'percent',
+        maximumFractionDigits: 2,
+    }).format(confidence);
 
 const calculateDistance = (
     originLatitude: number,
@@ -68,6 +109,70 @@ const formatDistance = (distance: number): string => {
     }
 
     return `${(distance / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} km`;
+};
+
+const scanImage = async (): Promise<void> => {
+    const image = selectedImage.value;
+
+    if (!image) {
+        return;
+    }
+
+    const requestId = ++scanRequestId;
+    const formData = new FormData();
+    formData.append('file', image);
+    scanError.value = '';
+    scanResult.value = null;
+    nearbyPlaces.value = [];
+    locationError.value = '';
+    hasSearched.value = false;
+    isScanning.value = true;
+
+    try {
+        const xsrfCookie = document.cookie
+            .split('; ')
+            .find((cookie) => cookie.startsWith('XSRF-TOKEN='));
+        const headers = new Headers({ Accept: 'application/json' });
+
+        if (xsrfCookie) {
+            headers.set(
+                'X-XSRF-TOKEN',
+                decodeURIComponent(xsrfCookie.slice('XSRF-TOKEN='.length)),
+            );
+        }
+
+        const response = await fetch(predict().url, {
+            method: 'POST',
+            headers,
+            body: formData,
+        });
+        const data = (await response.json()) as ScanResult & {
+            detail?: string;
+        };
+
+        if (!response.ok) {
+            throw new Error(
+                data.detail ?? 'Gambar tidak dapat diproses oleh layanan scan.',
+            );
+        }
+
+        if (requestId === scanRequestId) {
+            scanResult.value = data;
+        }
+    } catch (error) {
+        if (requestId === scanRequestId) {
+            scanError.value =
+                error instanceof TypeError
+                    ? 'Layanan scan tidak dapat dihubungi. Periksa koneksi dan pengaturan CORS API.'
+                    : error instanceof Error
+                      ? error.message
+                      : 'Terjadi kesalahan saat memproses gambar.';
+        }
+    } finally {
+        if (requestId === scanRequestId) {
+            isScanning.value = false;
+        }
+    }
 };
 
 const searchNearbyBanks = async (): Promise<void> => {
@@ -159,8 +264,12 @@ const selectImage = (file?: File): void => {
         return;
     }
 
-    if (!file.type.startsWith('image/')) {
-        errorMessage.value = 'Pilih file gambar dengan format yang didukung.';
+    if (
+        !['image/jpeg', 'image/png', 'image/webp', 'image/bmp'].includes(
+            file.type,
+        )
+    ) {
+        errorMessage.value = 'Format gambar harus JPG, PNG, WebP, atau BMP.';
 
         return;
     }
@@ -177,6 +286,10 @@ const selectImage = (file?: File): void => {
 
     selectedImage.value = file;
     previewUrl.value = URL.createObjectURL(file);
+    scanRequestId += 1;
+    isScanning.value = false;
+    scanError.value = '';
+    scanResult.value = null;
     nearbyPlaces.value = [];
     hasSearched.value = false;
     locationError.value = '';
@@ -200,6 +313,10 @@ const removeImage = (): void => {
     selectedImage.value = null;
     previewUrl.value = null;
     errorMessage.value = '';
+    scanRequestId += 1;
+    isScanning.value = false;
+    scanError.value = '';
+    scanResult.value = null;
     nearbyPlaces.value = [];
     hasSearched.value = false;
     locationError.value = '';
@@ -251,7 +368,7 @@ defineOptions({
                     id="waste-image"
                     class="sr-only"
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,image/bmp"
                     @change="handleFileChange"
                 />
                 <label
@@ -284,7 +401,7 @@ defineOptions({
                             </span>
                         </span>
                         <span class="text-xs text-muted-foreground"
-                            >JPG, PNG, WEBP · Maks. 10 MB</span
+                            >JPG, PNG, WebP, BMP · Maks. 10 MB</span
                         >
                     </div>
                 </label>
@@ -330,6 +447,111 @@ defineOptions({
 
         <section
             v-if="selectedImage"
+            class="space-y-4 border-t border-border pt-6"
+            aria-label="Proses scan gambar"
+        >
+            <button
+                type="button"
+                class="inline-flex min-h-11 items-center justify-center gap-2 bg-emerald-700 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                :disabled="isScanning"
+                @click="scanImage"
+            >
+                <LoaderCircle v-if="isScanning" class="size-4 animate-spin" />
+                <ScanLine v-else class="size-4" />
+                {{ isScanning ? 'Memindai gambar...' : 'Scan gambar' }}
+            </button>
+
+            <p v-if="scanError" class="text-sm text-destructive" role="alert">
+                {{ scanError }}
+            </p>
+        </section>
+
+        <section
+            v-if="scanResult"
+            class="space-y-5 border-t border-border pt-6"
+            aria-labelledby="scan-result-title"
+            aria-live="polite"
+        >
+            <div>
+                <p
+                    class="text-sm font-medium text-emerald-700 dark:text-emerald-400"
+                >
+                    Hasil pemindaian
+                </p>
+                <h2 id="scan-result-title" class="mt-1 text-2xl font-semibold">
+                    {{ formatMaterial(scanResult.prediction.class) }}
+                </h2>
+                <p class="mt-1 text-sm text-muted-foreground">
+                    Keyakinan model
+                    {{ formatConfidence(scanResult.prediction.confidence) }}
+                </p>
+            </div>
+
+            <div
+                v-if="scanResult.prediction.status === 'uncertain'"
+                class="space-y-4 border-l-2 border-amber-500 pl-5"
+            >
+                <p class="text-sm leading-6 text-muted-foreground">
+                    {{ scanResult.message }}
+                </p>
+                <div v-if="scanResult.candidates?.length">
+                    <h3 class="text-sm font-semibold">Kemungkinan material</h3>
+                    <ul class="mt-2 space-y-2">
+                        <li
+                            v-for="candidate in scanResult.candidates"
+                            :key="candidate.class"
+                            class="flex max-w-md items-center justify-between gap-4 text-sm"
+                        >
+                            <span>{{ formatMaterial(candidate.class) }}</span>
+                            <span class="text-muted-foreground">
+                                {{ formatConfidence(candidate.confidence) }}
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div
+                v-else-if="scanResult.recommendation"
+                class="max-w-3xl space-y-5"
+            >
+                <p class="leading-7">{{ scanResult.recommendation.summary }}</p>
+                <div v-if="scanResult.recommendation.steps.length">
+                    <h3 class="font-semibold">Langkah penanganan</h3>
+                    <ol
+                        class="mt-2 list-decimal space-y-2 pl-5 text-sm leading-6"
+                    >
+                        <li
+                            v-for="(step, index) in scanResult.recommendation
+                                .steps"
+                            :key="`${index}-${step}`"
+                        >
+                            {{ step }}
+                        </li>
+                    </ol>
+                </div>
+                <div v-if="scanResult.recommendation.warnings.length">
+                    <h3 class="font-semibold">Perhatian</h3>
+                    <ul
+                        class="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-muted-foreground"
+                    >
+                        <li
+                            v-for="(warning, index) in scanResult.recommendation
+                                .warnings"
+                            :key="`${index}-${warning}`"
+                        >
+                            {{ warning }}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <p v-else class="text-sm text-muted-foreground">
+                {{ scanResult.message ?? 'Rekomendasi belum tersedia.' }}
+            </p>
+        </section>
+
+        <section
+            v-if="scanResult"
             class="space-y-5 border-t border-border pt-6"
             aria-labelledby="nearby-places-title"
         >
