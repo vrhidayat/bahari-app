@@ -12,25 +12,6 @@ import { onBeforeUnmount, ref } from 'vue';
 import { dashboard } from '@/routes';
 import { predict } from '@/routes/waste-scan';
 
-type NearbyPlace = {
-    id: number;
-    name: string;
-    latitude: number;
-    longitude: number;
-    distance: number;
-};
-
-type OverpassElement = {
-    id: number;
-    lat?: number;
-    lon?: number;
-    center?: {
-        lat: number;
-        lon: number;
-    };
-    tags?: Record<string, string>;
-};
-
 type ScanResult = {
     prediction: {
         class: string;
@@ -55,7 +36,7 @@ const errorMessage = ref('');
 const scanError = ref('');
 const scanResult = ref<ScanResult | null>(null);
 const isScanning = ref(false);
-const nearbyPlaces = ref<NearbyPlace[]>([]);
+const googleMapsSearchUrl = ref<string | null>(null);
 const locationError = ref('');
 const isSearching = ref(false);
 const hasSearched = ref(false);
@@ -79,38 +60,6 @@ const formatConfidence = (confidence: number): string =>
         maximumFractionDigits: 2,
     }).format(confidence);
 
-const calculateDistance = (
-    originLatitude: number,
-    originLongitude: number,
-    destinationLatitude: number,
-    destinationLongitude: number,
-): number => {
-    const earthRadius = 6371e3;
-    const latitudeDifference =
-        ((destinationLatitude - originLatitude) * Math.PI) / 180;
-    const longitudeDifference =
-        ((destinationLongitude - originLongitude) * Math.PI) / 180;
-    const haversine =
-        Math.sin(latitudeDifference / 2) ** 2 +
-        Math.cos((originLatitude * Math.PI) / 180) *
-            Math.cos((destinationLatitude * Math.PI) / 180) *
-            Math.sin(longitudeDifference / 2) ** 2;
-
-    return (
-        earthRadius *
-        2 *
-        Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
-    );
-};
-
-const formatDistance = (distance: number): string => {
-    if (distance < 1000) {
-        return `${Math.round(distance)} m`;
-    }
-
-    return `${(distance / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} km`;
-};
-
 const scanImage = async (): Promise<void> => {
     const image = selectedImage.value;
 
@@ -123,7 +72,7 @@ const scanImage = async (): Promise<void> => {
     formData.append('file', image);
     scanError.value = '';
     scanResult.value = null;
-    nearbyPlaces.value = [];
+    googleMapsSearchUrl.value = null;
     locationError.value = '';
     hasSearched.value = false;
     isScanning.value = true;
@@ -163,7 +112,7 @@ const scanImage = async (): Promise<void> => {
         if (requestId === scanRequestId) {
             scanError.value =
                 error instanceof TypeError
-                    ? 'Layanan scan tidak dapat dihubungi. Periksa koneksi dan pengaturan CORS API.'
+                    ? 'Layanan scan tidak dapat dihubungi. Periksa koneksi internet dan pastikan server aplikasi aktif.'
                     : error instanceof Error
                       ? error.message
                       : 'Terjadi kesalahan saat memproses gambar.';
@@ -177,7 +126,7 @@ const scanImage = async (): Promise<void> => {
 
 const searchNearbyBanks = async (): Promise<void> => {
     locationError.value = '';
-    nearbyPlaces.value = [];
+    googleMapsSearchUrl.value = null;
     hasSearched.value = false;
     isSearching.value = true;
 
@@ -196,62 +145,20 @@ const searchNearbyBanks = async (): Promise<void> => {
             },
         );
         const { latitude, longitude } = position.coords;
-        const query = `[out:json][timeout:25];(node["amenity"="recycling"](around:10000,${latitude},${longitude});way["amenity"="recycling"](around:10000,${latitude},${longitude});relation["amenity"="recycling"](around:10000,${latitude},${longitude}););out center tags;`;
-        const response = await fetch(
-            'https://overpass-api.de/api/interpreter',
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({ data: query }),
-            },
+        const searchUrl = new URL('https://www.google.com/maps/search/');
+        searchUrl.searchParams.set('api', '1');
+        searchUrl.searchParams.set(
+            'query',
+            `bank sampah terdekat near ${latitude},${longitude}`,
         );
 
-        if (!response.ok) {
-            throw new Error('Data lokasi tidak dapat dimuat.');
-        }
-
-        const data = (await response.json()) as {
-            elements: OverpassElement[];
-        };
-
-        nearbyPlaces.value = data.elements
-            .flatMap((element): NearbyPlace[] => {
-                const placeLatitude = element.center?.lat ?? element.lat;
-                const placeLongitude = element.center?.lon ?? element.lon;
-
-                if (
-                    placeLatitude === undefined ||
-                    placeLongitude === undefined
-                ) {
-                    return [];
-                }
-
-                return [
-                    {
-                        id: element.id,
-                        name:
-                            element.tags?.name ??
-                            element.tags?.operator ??
-                            'Titik daur ulang',
-                        latitude: placeLatitude,
-                        longitude: placeLongitude,
-                        distance: calculateDistance(
-                            latitude,
-                            longitude,
-                            placeLatitude,
-                            placeLongitude,
-                        ),
-                    },
-                ];
-            })
-            .sort((first, second) => first.distance - second.distance)
-            .slice(0, 10);
+        googleMapsSearchUrl.value = searchUrl.toString();
         hasSearched.value = true;
-    } catch {
+    } catch (error) {
         locationError.value =
-            'Lokasi atau data tempat tidak dapat diakses. Izinkan akses lokasi dan periksa koneksi internet, lalu coba lagi.';
+            error instanceof Error
+                ? error.message
+                : 'Lokasi atau data tempat tidak dapat diakses. Izinkan akses lokasi dan coba lagi.';
     } finally {
         isSearching.value = false;
     }
@@ -290,7 +197,7 @@ const selectImage = (file?: File): void => {
     isScanning.value = false;
     scanError.value = '';
     scanResult.value = null;
-    nearbyPlaces.value = [];
+    googleMapsSearchUrl.value = null;
     hasSearched.value = false;
     locationError.value = '';
 };
@@ -317,7 +224,7 @@ const removeImage = (): void => {
     isScanning.value = false;
     scanError.value = '';
     scanResult.value = null;
-    nearbyPlaces.value = [];
+    googleMapsSearchUrl.value = null;
     hasSearched.value = false;
     locationError.value = '';
 };
@@ -511,10 +418,10 @@ defineOptions({
                 </div>
             </div>
 
-            <div
-                v-else-if="scanResult.recommendation"
-                class="max-w-3xl space-y-5"
-            >
+            <div v-if="scanResult.recommendation" class="max-w-3xl space-y-5">
+                <h3 class="text-lg font-semibold">
+                    Rekomendasi pengelolaan sampah
+                </h3>
                 <p class="leading-7">{{ scanResult.recommendation.summary }}</p>
                 <div v-if="scanResult.recommendation.steps.length">
                     <h3 class="font-semibold">Langkah penanganan</h3>
@@ -545,10 +452,23 @@ defineOptions({
                     </ul>
                 </div>
             </div>
-            <p v-else class="text-sm text-muted-foreground">
+            <p
+                v-else-if="scanResult.prediction.status !== 'uncertain'"
+                class="text-sm text-muted-foreground"
+            >
                 {{ scanResult.message ?? 'Rekomendasi belum tersedia.' }}
             </p>
         </section>
+
+        <details v-if="scanResult" class="border-t border-border pt-4">
+            <summary class="cursor-pointer text-sm font-medium">
+                Debug hasil scan
+            </summary>
+            <pre
+                class="mt-3 max-h-96 overflow-auto bg-muted p-4 text-xs leading-5 break-words whitespace-pre-wrap"
+                data-testid="scan-result-debug"
+                >{{ JSON.stringify(scanResult, null, 2) }}</pre>
+        </details>
 
         <section
             v-if="scanResult"
@@ -560,11 +480,10 @@ defineOptions({
             >
                 <div>
                     <h2 id="nearby-places-title" class="text-xl font-semibold">
-                        Bank sampah terdekat
+                        Cari bank sampah terdekat di Google Maps
                     </h2>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        Titik daur ulang berdasarkan lokasi GPS, dalam radius 10
-                        km.
+                        Google Maps mencari bank sampah dari koordinat GPS-mu.
                     </p>
                 </div>
                 <button
@@ -594,50 +513,21 @@ defineOptions({
                 {{ locationError }}
             </p>
 
-            <p
-                v-else-if="hasSearched && nearbyPlaces.length === 0"
-                class="border border-border p-5 text-sm text-muted-foreground"
+            <a
+                v-if="hasSearched && googleMapsSearchUrl"
+                :href="googleMapsSearchUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex min-h-11 items-center gap-2 border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
             >
-                Tidak ditemukan titik daur ulang dalam radius 10 km.
-            </p>
+                <MapPin class="size-4 text-emerald-700" />
+                Lihat hasil pencarian di Google Maps
+                <ExternalLink class="size-4" />
+            </a>
 
-            <ul v-else-if="nearbyPlaces.length" class="divide-y divide-border">
-                <li
-                    v-for="place in nearbyPlaces"
-                    :key="place.id"
-                    class="flex items-center justify-between gap-4 py-4"
-                >
-                    <div class="flex min-w-0 items-start gap-3">
-                        <MapPin
-                            class="mt-0.5 size-4 shrink-0 text-emerald-700"
-                        />
-                        <div class="min-w-0">
-                            <p class="truncate font-medium">{{ place.name }}</p>
-                            <p class="mt-1 text-sm text-muted-foreground">
-                                {{ formatDistance(place.distance) }}
-                            </p>
-                        </div>
-                    </div>
-                    <a
-                        :href="`https://www.openstreetmap.org/?mlat=${place.latitude}&mlon=${place.longitude}#map=18/${place.latitude}/${place.longitude}`"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-emerald-800 hover:underline dark:text-emerald-400"
-                    >
-                        Peta
-                        <ExternalLink class="size-3.5" />
-                    </a>
-                </li>
-            </ul>
-
-            <p v-else class="text-sm text-muted-foreground">
-                Pilih tombol di atas untuk menemukan titik daur ulang di
-                sekitarmu.
-            </p>
-
-            <p class="text-xs text-muted-foreground">
-                Data peta dari OpenStreetMap; cakupan bank sampah dapat berbeda
-                di tiap wilayah.
+            <p v-else class="text-xs text-muted-foreground">
+                Hasil dan rute dibuka di Google Maps. Izinkan akses GPS untuk
+                membuat pencarian berdasarkan lokasimu.
             </p>
         </section>
     </main>
