@@ -30,32 +30,164 @@ type ScanResult = {
     }[];
 };
 
+type Locale = 'id' | 'en';
+
+const locale = ref<Locale>('id');
+const translations = {
+    id: {
+        languageLabel: 'Pilih bahasa',
+        indonesian: 'Bahasa Indonesia',
+        english: 'Inggris',
+        pageTitle: 'Scan Sampah',
+        tagline: 'Kenali dan pilah sampahmu',
+        introduction:
+            'Unggah foto sampah yang ingin kamu pilah. Pastikan objek terlihat jelas dan pencahayaan cukup.',
+        previewAlt: 'Pratinjau gambar sampah',
+        chooseImage: 'Pilih gambar sampah',
+        dragImage: 'atau seret dan lepaskan gambar di sini',
+        allowedFileTypes: 'JPG, PNG, WebP, BMP · Maks. 10 MB',
+        invalidFileType: 'Format gambar harus JPG, PNG, WebP, atau BMP.',
+        fileTooLarge: 'Ukuran gambar maksimal 10 MB.',
+        removeImage: 'Hapus gambar',
+        removeImageLabel: 'Hapus gambar',
+        photoTipsTitle: 'Agar hasil foto lebih baik',
+        photoTipSingleMaterial: 'Foto satu jenis sampah dalam satu gambar.',
+        photoTipSimpleBackground:
+            'Gunakan latar yang sederhana dan tidak ramai.',
+        photoTipClearImage: 'Hindari gambar yang gelap atau buram.',
+        scanImageLabel: 'Proses scan gambar',
+        scanning: 'Memindai gambar...',
+        scanImage: 'Scan gambar',
+        scanConnectionError:
+            'Layanan scan tidak dapat dihubungi. Periksa koneksi internet dan pastikan server aplikasi aktif.',
+        scanUnexpectedError: 'Terjadi kesalahan saat memproses gambar.',
+        scanFailed: 'Gambar tidak dapat diproses oleh layanan scan.',
+        scanResults: 'Hasil pemindaian',
+        modelConfidence: 'Keyakinan model',
+        possibleMaterials: 'Kemungkinan material',
+        wasteRecommendations: 'Rekomendasi pengelolaan sampah',
+        handlingSteps: 'Langkah penanganan',
+        warnings: 'Perhatian',
+        recommendationUnavailable: 'Rekomendasi belum tersedia.',
+        nearbyPlaces: 'Tempat pengelolaan sampah terdekat',
+        nearbyPlacesDescription:
+            'Google Maps mencari bank sampah dari koordinat GPS-mu.',
+        searchingLocation: 'Mencari lokasi...',
+        findNearbyBanks: 'Cari bank sampah terdekat',
+        viewGoogleMapsResults: 'Lihat hasil pencarian di Google Maps',
+        googleMapsDescription:
+            'Hasil dan rute dibuka di Google Maps. Izinkan akses GPS untuk membuat pencarian berdasarkan lokasimu.',
+        locationUnsupported: 'Browser ini tidak mendukung akses lokasi.',
+        locationPermissionDenied:
+            'Akses lokasi ditolak. Izinkan akses lokasi di pengaturan browser, lalu coba lagi.',
+        locationUnavailable: 'Lokasi saat ini tidak dapat ditentukan.',
+        locationTimeout:
+            'Permintaan lokasi terlalu lama. Coba lagi dalam beberapa saat.',
+        locationFailed:
+            'Lokasi atau data tempat tidak dapat diakses. Izinkan akses lokasi dan coba lagi.',
+        nearbySearchQuery: 'bank sampah terdekat',
+        materialCardboard: 'Kardus',
+        materialGlass: 'Kaca',
+        materialMetal: 'Logam',
+        materialPaper: 'Kertas',
+        materialPlastic: 'Plastik',
+        materialTrash: 'Sampah campuran',
+    },
+    en: {
+        languageLabel: 'Choose language',
+        indonesian: 'Indonesian',
+        english: 'English',
+        pageTitle: 'Waste Scan',
+        tagline: 'Identify and sort your waste',
+        introduction:
+            'Upload a photo of the waste you want to sort. Make sure the object is clearly visible and well lit.',
+        previewAlt: 'Waste image preview',
+        chooseImage: 'Choose a waste image',
+        dragImage: 'or drag and drop an image here',
+        allowedFileTypes: 'JPG, PNG, WebP, BMP · Max. 10 MB',
+        invalidFileType: 'Image must be JPG, PNG, WebP, or BMP.',
+        fileTooLarge: 'Image size must not exceed 10 MB.',
+        removeImage: 'Remove image',
+        removeImageLabel: 'Remove image',
+        photoTipsTitle: 'Tips for a better photo',
+        photoTipSingleMaterial: 'Include only one type of waste in each image.',
+        photoTipSimpleBackground: 'Use a simple, uncluttered background.',
+        photoTipClearImage: 'Avoid dark or blurry images.',
+        scanImageLabel: 'Scan image',
+        scanning: 'Scanning image...',
+        scanImage: 'Scan image',
+        scanConnectionError:
+            'The scan service could not be reached. Check your internet connection and make sure the application server is running.',
+        scanUnexpectedError: 'An error occurred while processing the image.',
+        scanFailed: 'The scan service could not process this image.',
+        scanResults: 'Scan results',
+        modelConfidence: 'Model confidence',
+        possibleMaterials: 'Possible materials',
+        wasteRecommendations: 'Waste management recommendations',
+        handlingSteps: 'Handling steps',
+        warnings: 'Warnings',
+        recommendationUnavailable: 'Recommendations are not available yet.',
+        nearbyPlaces: 'Find nearby recycling centers on Google Maps',
+        nearbyPlacesDescription:
+            'Google Maps will search for recycling centers using your GPS coordinates.',
+        searchingLocation: 'Finding your location...',
+        findNearbyBanks: 'Find nearby recycling centers',
+        viewGoogleMapsResults: 'View search results on Google Maps',
+        googleMapsDescription:
+            'Results and directions open in Google Maps. Allow GPS access to search near your location.',
+        locationUnsupported: 'This browser does not support location access.',
+        locationPermissionDenied:
+            'Location access was denied. Allow location access in your browser settings, then try again.',
+        locationUnavailable: 'Your current location could not be determined.',
+        locationTimeout:
+            'The location request timed out. Please try again in a moment.',
+        locationFailed:
+            'Location or place data could not be accessed. Allow location access and try again.',
+        nearbySearchQuery: 'recycling center near',
+        materialCardboard: 'Cardboard',
+        materialGlass: 'Glass',
+        materialMetal: 'Metal',
+        materialPaper: 'Paper',
+        materialPlastic: 'Plastic',
+        materialTrash: 'Mixed waste',
+    },
+} as const;
+
+type TranslationKey = keyof typeof translations.id;
+type LocalizedMessage = { key: TranslationKey } | { text: string };
+
+const translate = (key: TranslationKey): string =>
+    translations[locale.value][key];
+
 const selectedImage = ref<File | null>(null);
 const previewUrl = ref<string | null>(null);
-const errorMessage = ref('');
-const scanError = ref('');
+const errorMessage = ref<TranslationKey | null>(null);
+const scanError = ref<LocalizedMessage | null>(null);
 const scanResult = ref<ScanResult | null>(null);
 const isScanning = ref(false);
 const googleMapsSearchUrl = ref<string | null>(null);
-const locationError = ref('');
+const locationError = ref<LocalizedMessage | null>(null);
 const isSearching = ref(false);
 const hasSearched = ref(false);
 let scanRequestId = 0;
 
-const materialLabels: Record<string, string> = {
-    cardboard: 'Kardus',
-    glass: 'Kaca',
-    metal: 'Logam',
-    paper: 'Kertas',
-    plastic: 'Plastik',
-    trash: 'Sampah campuran',
+const formatMessage = (message: LocalizedMessage): string =>
+    'key' in message ? translate(message.key) : message.text;
+
+const materialLabels: Record<string, TranslationKey> = {
+    cardboard: 'materialCardboard',
+    glass: 'materialGlass',
+    metal: 'materialMetal',
+    paper: 'materialPaper',
+    plastic: 'materialPlastic',
+    trash: 'materialTrash',
 };
 
 const formatMaterial = (material: string): string =>
-    materialLabels[material] ?? material;
+    materialLabels[material] ? translate(materialLabels[material]) : material;
 
 const formatConfidence = (confidence: number): string =>
-    new Intl.NumberFormat('id-ID', {
+    new Intl.NumberFormat(locale.value === 'id' ? 'id-ID' : 'en-US', {
         style: 'percent',
         maximumFractionDigits: 2,
     }).format(confidence);
@@ -70,10 +202,10 @@ const scanImage = async (): Promise<void> => {
     const requestId = ++scanRequestId;
     const formData = new FormData();
     formData.append('file', image);
-    scanError.value = '';
+    scanError.value = null;
     scanResult.value = null;
     googleMapsSearchUrl.value = null;
-    locationError.value = '';
+    locationError.value = null;
     hasSearched.value = false;
     isScanning.value = true;
 
@@ -100,9 +232,7 @@ const scanImage = async (): Promise<void> => {
         };
 
         if (!response.ok) {
-            throw new Error(
-                data.detail ?? 'Gambar tidak dapat diproses oleh layanan scan.',
-            );
+            throw new Error(data.detail ?? translate('scanFailed'));
         }
 
         if (requestId === scanRequestId) {
@@ -112,10 +242,10 @@ const scanImage = async (): Promise<void> => {
         if (requestId === scanRequestId) {
             scanError.value =
                 error instanceof TypeError
-                    ? 'Layanan scan tidak dapat dihubungi. Periksa koneksi internet dan pastikan server aplikasi aktif.'
+                    ? { key: 'scanConnectionError' }
                     : error instanceof Error
-                      ? error.message
-                      : 'Terjadi kesalahan saat memproses gambar.';
+                      ? { text: error.message }
+                      : { key: 'scanUnexpectedError' };
         }
     } finally {
         if (requestId === scanRequestId) {
@@ -125,14 +255,16 @@ const scanImage = async (): Promise<void> => {
 };
 
 const searchNearbyBanks = async (): Promise<void> => {
-    locationError.value = '';
+    locationError.value = null;
     googleMapsSearchUrl.value = null;
     hasSearched.value = false;
     isSearching.value = true;
 
     try {
         if (!navigator.geolocation) {
-            throw new Error('Browser ini tidak mendukung akses lokasi.');
+            locationError.value = { key: 'locationUnsupported' };
+
+            return;
         }
 
         const position = await new Promise<GeolocationPosition>(
@@ -149,23 +281,37 @@ const searchNearbyBanks = async (): Promise<void> => {
         searchUrl.searchParams.set('api', '1');
         searchUrl.searchParams.set(
             'query',
-            `bank sampah terdekat near ${latitude},${longitude}`,
+            `${translate('nearbySearchQuery')} ${latitude},${longitude}`,
         );
 
         googleMapsSearchUrl.value = searchUrl.toString();
         hasSearched.value = true;
     } catch (error) {
-        locationError.value =
-            error instanceof Error
-                ? error.message
-                : 'Lokasi atau data tempat tidak dapat diakses. Izinkan akses lokasi dan coba lagi.';
+        if (
+            typeof error === 'object' &&
+            error !== null &&
+            'code' in error &&
+            typeof error.code === 'number'
+        ) {
+            locationError.value =
+                error.code === 1
+                    ? { key: 'locationPermissionDenied' }
+                    : error.code === 2
+                      ? { key: 'locationUnavailable' }
+                      : { key: 'locationTimeout' };
+        } else {
+            locationError.value =
+                error instanceof Error
+                    ? { text: error.message }
+                    : { key: 'locationFailed' };
+        }
     } finally {
         isSearching.value = false;
     }
 };
 
 const selectImage = (file?: File): void => {
-    errorMessage.value = '';
+    errorMessage.value = null;
 
     if (!file) {
         return;
@@ -176,13 +322,13 @@ const selectImage = (file?: File): void => {
             file.type,
         )
     ) {
-        errorMessage.value = 'Format gambar harus JPG, PNG, WebP, atau BMP.';
+        errorMessage.value = 'invalidFileType';
 
         return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-        errorMessage.value = 'Ukuran gambar maksimal 10 MB.';
+        errorMessage.value = 'fileTooLarge';
 
         return;
     }
@@ -195,11 +341,11 @@ const selectImage = (file?: File): void => {
     previewUrl.value = URL.createObjectURL(file);
     scanRequestId += 1;
     isScanning.value = false;
-    scanError.value = '';
+    scanError.value = null;
     scanResult.value = null;
     googleMapsSearchUrl.value = null;
     hasSearched.value = false;
-    locationError.value = '';
+    locationError.value = null;
 };
 
 const handleFileChange = (event: Event): void => {
@@ -219,14 +365,14 @@ const removeImage = (): void => {
 
     selectedImage.value = null;
     previewUrl.value = null;
-    errorMessage.value = '';
+    errorMessage.value = null;
     scanRequestId += 1;
     isScanning.value = false;
-    scanError.value = '';
+    scanError.value = null;
     scanResult.value = null;
     googleMapsSearchUrl.value = null;
     hasSearched.value = false;
-    locationError.value = '';
+    locationError.value = null;
 };
 
 onBeforeUnmount(() => {
@@ -248,24 +394,57 @@ defineOptions({
 </script>
 
 <template>
-    <Head title="Scan Sampah" />
+    <Head :title="translate('pageTitle')" />
 
     <main
         class="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 p-6 md:p-10"
+        :lang="locale"
     >
         <header class="max-w-2xl space-y-3">
+            <nav
+                class="mb-6 flex items-center gap-2"
+                :aria-label="translate('languageLabel')"
+            >
+                <button
+                    type="button"
+                    class="border px-3 py-1.5 text-sm transition-colors"
+                    :class="
+                        locale === 'id'
+                            ? 'border-emerald-700 bg-emerald-700 text-white'
+                            : 'border-border text-foreground hover:bg-muted'
+                    "
+                    :aria-pressed="locale === 'id'"
+                    :aria-label="translate('indonesian')"
+                    @click="locale = 'id'"
+                >
+                    ID
+                </button>
+                <button
+                    type="button"
+                    class="border px-3 py-1.5 text-sm transition-colors"
+                    :class="
+                        locale === 'en'
+                            ? 'border-emerald-700 bg-emerald-700 text-white'
+                            : 'border-border text-foreground hover:bg-muted'
+                    "
+                    :aria-pressed="locale === 'en'"
+                    :aria-label="translate('english')"
+                    @click="locale = 'en'"
+                >
+                    EN
+                </button>
+            </nav>
             <div
                 class="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400"
             >
                 <ScanLine class="size-4" />
-                <span>Kenali dan pilah sampahmu</span>
+                <span>{{ translate('tagline') }}</span>
             </div>
             <h1 class="text-3xl font-semibold tracking-tight md:text-4xl">
-                Scan Sampah
+                {{ translate('pageTitle') }}
             </h1>
             <p class="text-base text-muted-foreground">
-                Unggah foto sampah yang ingin kamu pilah. Pastikan objek
-                terlihat jelas dan pencahayaan cukup.
+                {{ translate('introduction') }}
             </p>
         </header>
 
@@ -287,7 +466,7 @@ defineOptions({
                     <img
                         v-if="previewUrl"
                         :src="previewUrl"
-                        :alt="selectedImage?.name ?? 'Pratinjau gambar sampah'"
+                        :alt="selectedImage?.name ?? translate('previewAlt')"
                         class="absolute inset-0 size-full object-contain p-4"
                     />
                     <div
@@ -300,16 +479,16 @@ defineOptions({
                             <ImagePlus class="size-7" />
                         </span>
                         <span class="space-y-1">
-                            <span class="block font-medium"
-                                >Pilih gambar sampah</span
-                            >
+                            <span class="block font-medium">{{
+                                translate('chooseImage')
+                            }}</span>
                             <span class="block text-sm text-muted-foreground">
-                                atau seret dan lepaskan gambar di sini
+                                {{ translate('dragImage') }}
                             </span>
                         </span>
-                        <span class="text-xs text-muted-foreground"
-                            >JPG, PNG, WebP, BMP · Maks. 10 MB</span
-                        >
+                        <span class="text-xs text-muted-foreground">{{
+                            translate('allowedFileTypes')
+                        }}</span>
                     </div>
                 </label>
 
@@ -318,7 +497,7 @@ defineOptions({
                     class="text-sm text-destructive"
                     role="alert"
                 >
-                    {{ errorMessage }}
+                    {{ translate(errorMessage) }}
                 </p>
 
                 <div
@@ -331,23 +510,25 @@ defineOptions({
                     <button
                         type="button"
                         class="inline-flex shrink-0 items-center gap-2 text-sm font-medium text-destructive hover:underline"
-                        aria-label="Hapus gambar"
+                        :aria-label="translate('removeImageLabel')"
                         @click="removeImage"
                     >
                         <Trash2 class="size-4" />
-                        Hapus gambar
+                        {{ translate('removeImage') }}
                     </button>
                 </div>
             </div>
 
             <aside class="h-fit border-l-2 border-emerald-600 pl-5">
-                <h2 class="font-semibold">Agar hasil foto lebih baik</h2>
+                <h2 class="font-semibold">
+                    {{ translate('photoTipsTitle') }}
+                </h2>
                 <ul
                     class="mt-4 space-y-3 text-sm leading-6 text-muted-foreground"
                 >
-                    <li>Foto satu jenis sampah dalam satu gambar.</li>
-                    <li>Gunakan latar yang sederhana dan tidak ramai.</li>
-                    <li>Hindari gambar yang gelap atau buram.</li>
+                    <li>{{ translate('photoTipSingleMaterial') }}</li>
+                    <li>{{ translate('photoTipSimpleBackground') }}</li>
+                    <li>{{ translate('photoTipClearImage') }}</li>
                 </ul>
             </aside>
         </section>
@@ -355,7 +536,7 @@ defineOptions({
         <section
             v-if="selectedImage"
             class="space-y-4 border-t border-border pt-6"
-            aria-label="Proses scan gambar"
+            :aria-label="translate('scanImageLabel')"
         >
             <button
                 type="button"
@@ -365,11 +546,13 @@ defineOptions({
             >
                 <LoaderCircle v-if="isScanning" class="size-4 animate-spin" />
                 <ScanLine v-else class="size-4" />
-                {{ isScanning ? 'Memindai gambar...' : 'Scan gambar' }}
+                {{
+                    isScanning ? translate('scanning') : translate('scanImage')
+                }}
             </button>
 
             <p v-if="scanError" class="text-sm text-destructive" role="alert">
-                {{ scanError }}
+                {{ formatMessage(scanError) }}
             </p>
         </section>
 
@@ -383,13 +566,13 @@ defineOptions({
                 <p
                     class="text-sm font-medium text-emerald-700 dark:text-emerald-400"
                 >
-                    Hasil pemindaian
+                    {{ translate('scanResults') }}
                 </p>
                 <h2 id="scan-result-title" class="mt-1 text-2xl font-semibold">
                     {{ formatMaterial(scanResult.prediction.class) }}
                 </h2>
                 <p class="mt-1 text-sm text-muted-foreground">
-                    Keyakinan model
+                    {{ translate('modelConfidence') }}
                     {{ formatConfidence(scanResult.prediction.confidence) }}
                 </p>
             </div>
@@ -402,7 +585,9 @@ defineOptions({
                     {{ scanResult.message }}
                 </p>
                 <div v-if="scanResult.candidates?.length">
-                    <h3 class="text-sm font-semibold">Kemungkinan material</h3>
+                    <h3 class="text-sm font-semibold">
+                        {{ translate('possibleMaterials') }}
+                    </h3>
                     <ul class="mt-2 space-y-2">
                         <li
                             v-for="candidate in scanResult.candidates"
@@ -420,11 +605,13 @@ defineOptions({
 
             <div v-if="scanResult.recommendation" class="max-w-3xl space-y-5">
                 <h3 class="text-lg font-semibold">
-                    Rekomendasi pengelolaan sampah
+                    {{ translate('wasteRecommendations') }}
                 </h3>
                 <p class="leading-7">{{ scanResult.recommendation.summary }}</p>
                 <div v-if="scanResult.recommendation.steps.length">
-                    <h3 class="font-semibold">Langkah penanganan</h3>
+                    <h3 class="font-semibold">
+                        {{ translate('handlingSteps') }}
+                    </h3>
                     <ol
                         class="mt-2 list-decimal space-y-2 pl-5 text-sm leading-6"
                     >
@@ -438,7 +625,9 @@ defineOptions({
                     </ol>
                 </div>
                 <div v-if="scanResult.recommendation.warnings.length">
-                    <h3 class="font-semibold">Perhatian</h3>
+                    <h3 class="font-semibold">
+                        {{ translate('warnings') }}
+                    </h3>
                     <ul
                         class="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-muted-foreground"
                     >
@@ -456,10 +645,13 @@ defineOptions({
                 v-else-if="scanResult.prediction.status !== 'uncertain'"
                 class="text-sm text-muted-foreground"
             >
-                {{ scanResult.message ?? 'Rekomendasi belum tersedia.' }}
+                {{
+                    scanResult.message ?? translate('recommendationUnavailable')
+                }}
             </p>
         </section>
 
+        <!--
         <details v-if="scanResult" class="border-t border-border pt-4">
             <summary class="cursor-pointer text-sm font-medium">
                 Debug hasil scan
@@ -469,6 +661,7 @@ defineOptions({
                 data-testid="scan-result-debug"
                 >{{ JSON.stringify(scanResult, null, 2) }}</pre>
         </details>
+        -->
 
         <section
             v-if="scanResult"
@@ -480,10 +673,10 @@ defineOptions({
             >
                 <div>
                     <h2 id="nearby-places-title" class="text-xl font-semibold">
-                        Cari bank sampah terdekat di Google Maps
+                        {{ translate('nearbyPlaces') }}
                     </h2>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        Google Maps mencari bank sampah dari koordinat GPS-mu.
+                        {{ translate('nearbyPlacesDescription') }}
                     </p>
                 </div>
                 <button
@@ -499,8 +692,8 @@ defineOptions({
                     <MapPin v-else class="size-4" />
                     {{
                         isSearching
-                            ? 'Mencari lokasi...'
-                            : 'Cari bank sampah terdekat'
+                            ? translate('searchingLocation')
+                            : translate('findNearbyBanks')
                     }}
                 </button>
             </div>
@@ -510,7 +703,7 @@ defineOptions({
                 class="text-sm text-destructive"
                 role="alert"
             >
-                {{ locationError }}
+                {{ formatMessage(locationError) }}
             </p>
 
             <a
@@ -521,13 +714,12 @@ defineOptions({
                 class="inline-flex min-h-11 items-center gap-2 border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
             >
                 <MapPin class="size-4 text-emerald-700" />
-                Lihat hasil pencarian di Google Maps
+                {{ translate('viewGoogleMapsResults') }}
                 <ExternalLink class="size-4" />
             </a>
 
             <p v-else class="text-xs text-muted-foreground">
-                Hasil dan rute dibuka di Google Maps. Izinkan akses GPS untuk
-                membuat pencarian berdasarkan lokasimu.
+                {{ translate('googleMapsDescription') }}
             </p>
         </section>
     </main>
